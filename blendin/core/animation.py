@@ -59,6 +59,12 @@ class LiveAnimationOperator(bpy.types.Operator):
 
                         self._facial_mapper.update_blendshapes(target_mesh, data['facial_landmarks'])
 
+                        if props.is_recording and target_mesh and target_mesh.data.shape_keys:
+                            for mapping in props.facial_mappings:
+                                blendshape = target_mesh.data.shape_keys.key_blocks.get(mapping.name)
+                                if blendshape:
+                                    blendshape.keyframe_insert(data_path="value", frame=context.scene.frame_current)
+
                     # --- Vocal Animation ---
                     if 'vocal_energy' in data:
                         target_mesh = bpy.data.objects.get(props.target_mesh)
@@ -66,6 +72,8 @@ class LiveAnimationOperator(bpy.types.Operator):
                             jaw_open_bs = target_mesh.data.shape_keys.key_blocks.get("jaw_open")
                             if jaw_open_bs:
                                 jaw_open_bs.value = data['vocal_energy']
+                                if props.is_recording:
+                                    jaw_open_bs.keyframe_insert(data_path="value", frame=context.scene.frame_current)
 
 
         elif event.type in {'RIGHTMOUSE', 'ESC'}:
