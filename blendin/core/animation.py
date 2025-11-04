@@ -1,7 +1,10 @@
 import bpy
+import time
+from mathutils import Quaternion
 from ..comms.websocket_client import get_client
 from .facial_mapping import FacialMapper
 from .smoothing import SmoothingFilter
+from .motion_textures import MotionTextureGenerator
 
 class LiveAnimationOperator(bpy.types.Operator):
     """Operator which runs a modal timer to update an armature and face."""
@@ -11,6 +14,8 @@ class LiveAnimationOperator(bpy.types.Operator):
     _timer = None
     _facial_mapper = None
     _smoothing_filter = None
+    _motion_texture_generator = None
+    _start_time = 0
 
     def modal(self, context, event):
         if event.type == 'TIMER':
@@ -21,13 +26,14 @@ class LiveAnimationOperator(bpy.types.Operator):
                 if data:
                     props = context.scene.blend_in_props
 
-                    # --- Smoothing ---
-                    if props.use_smoothing:
-                        if self._smoothing_filter is None:
-                            self._smoothing_filter = SmoothingFilter()
-                        data = self._smoothing_filter.smooth(data)
-                    else:
-                        self._smoothing_filter = None
+                    # --- Motion Textures ---
+                    texture_offsets = {}
+                    if props.use_motion_textures:
+                        if self._motion_texture_generator is None:
+                            self._motion_texture_generator = MotionTextureGenerator()
+
+                        elapsed_time = time.time() - self._start_time
+                        texture_offsets = self._motion_texture_generator.get_offsets(elapsed_time)
 
                     # --- Skeletal Animation ---
                     if 'joints' in data:
@@ -37,15 +43,21 @@ class LiveAnimationOperator(bpy.types.Operator):
                                 bone_name = joint.get("name")
                                 pose_bone = armature.pose.bones.get(bone_name)
                                 if pose_bone:
-                                    rotation = joint.get("rotation")
-                                    if rotation and len(rotation) == 4:
-                                        if pose_bone.rotation_mode != 'QUATERNION':
-                                            pose_bone.rotation_mode = 'QUATERNION'
+                                    base_rotation = Quaternion(joint.get("rotation", [1, 0, 0, 0]))
 
-                                        pose_bone.rotation_quaternion = rotation
+                                    # Layer motion texture on top
+                                    if bone_name in texture_offsets:
+                                        final_rotation = base_rotation @ texture_offsets[bone_name]
+                                    else:
+                                        final_rotation = base_rotation
 
-                                        if props.is_recording:
-                                            pose_bone.keyframe_insert(data_path="rotation_quaternion", frame=context.scene.frame_current)
+                                    if pose_bone.rotation_mode != 'QUATERNION':
+                                        pose_bone.rotation_mode = 'QUATERNION'
+
+                                    pose_bone.rotation_quaternion = final_rotation
+
+                                    if props.is_recording:
+                                        pose_bone.keyframe_insert(data_path="rotation_quaternion", frame=context.scene.frame_current)
 
                     # --- Facial Animation ---
                     if 'facial_landmarks' in data:
@@ -110,6 +122,7 @@ class LiveAnimationOperator(bpy.types.Operator):
         wm = context.window_manager
         self._timer = wm.event_timer_add(1/60, window=context.window)
         wm.modal_handler_add(self)
+        self._start_time = time.time()
         return {'RUNNING_MODAL'}
 
     def cancel(self, context):

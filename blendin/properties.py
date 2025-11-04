@@ -51,6 +51,11 @@ class BlendInProperties(bpy.types.PropertyGroup):
         default=False,
     )
     facial_mappings: bpy.props.CollectionProperty(type=BlendInFacialMapping)
+    use_motion_textures: bpy.props.BoolProperty(
+        name="Use Motion Textures",
+        description="Apply generative idle motion to the character",
+        default=False,
+    )
 
 def register():
     bpy.utils.register_class(BlendInFacialMapping)
