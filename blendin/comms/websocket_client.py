@@ -46,6 +46,8 @@ class WebsocketClient:
                         data = json.loads(message)
                         with self.lock:
                             self.latest_data = data
+                        # Optional: print to verify the new data structure
+                        # print(f"Received data: {data.keys()}")
             except Exception as e:
                 print(f"WebSocket connection error: {e}")
                 await asyncio.sleep(5)

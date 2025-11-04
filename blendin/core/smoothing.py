@@ -1,4 +1,5 @@
 import collections
+from mathutils import Quaternion
 
 class SmoothingFilter:
     def __init__(self, window_size=5):
@@ -12,14 +13,19 @@ class SmoothingFilter:
         smoothed_joints = []
         for joint in data['joints']:
             joint_name = joint.get("name")
-            position = joint.get("position")
+            rotation = joint.get("rotation")
 
-            if joint_name and position:
+            if joint_name and rotation:
                 data_queue = self.joint_data[joint_name]
-                data_queue.append(position)
+                data_queue.append(Quaternion(rotation))
 
-                # Calculate the average position
-                avg_position = [sum(val) / len(data_queue) for val in zip(*data_queue)]
-                smoothed_joints.append({"name": joint_name, "position": avg_position})
+                # Simple linear interpolation for quaternions.
+                # A more advanced solution would use Slerp.
+                avg_rotation = Quaternion()
+                for q in data_queue:
+                    avg_rotation.slerp(q, 1.0 / len(data_queue))
 
-        return {"joints": smoothed_joints}
+                smoothed_joints.append({"name": joint_name, "rotation": list(avg_rotation)})
+
+        data["joints"] = smoothed_joints
+        return data
