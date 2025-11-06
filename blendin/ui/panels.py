@@ -23,6 +23,8 @@ class BLENDIN_PT_main_panel(bpy.types.Panel):
         row.prop(props, "use_smoothing")
         row = layout.row()
         row.prop(props, "use_motion_textures")
+        row = layout.row()
+        row.prop(props, "use_motion_debugger")
 
         row = layout.row()
         row.operator("wm.live_animation_operator", text="Start Live Preview")
@@ -138,6 +140,62 @@ class BLENDIN_PT_facial_mapping_panel(bpy.types.Panel):
                 row = box.row()
                 row.prop(mapping, "lower_landmark", text="Lower")
 
+class BLENDIN_PT_dream_capture_panel(bpy.types.Panel):
+    bl_label = "Dream Capture"
+    bl_idname = "BLENDIN_PT_dream_capture_panel"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = 'Blend-In'
+    bl_parent_id = "BLENDIN_PT_main_panel"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
+        layout = self.layout
+        props = context.scene.blend_in_props
+
+        row = layout.row()
+        row.prop(props, "dream_prompt", text="")
+
+        row = layout.row()
+        row.operator("blendin.generate_pose", text="Generate Pose")
+
+class BLENDIN_PT_retargeting_panel(bpy.types.Panel):
+    bl_label = "Retargeting"
+    bl_idname = "BLENDIN_PT_retargeting_panel"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = 'Blend-In'
+    bl_parent_id = "BLENDIN_PT_main_panel"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    # Define the list of source bones from our data stream
+    SOURCE_BONES = ["head", "neck", "hip", "spine", "left_shoulder", "right_shoulder"]
+
+    def draw(self, context):
+        layout = self.layout
+        props = context.scene.blend_in_props
+        armature = bpy.data.objects.get(props.target_armature)
+
+        if not armature or armature.type != 'ARMATURE':
+            layout.label(text="Select a target armature.")
+            return
+
+        # Sync the mapping properties with the source bones
+        if len(props.bone_mappings) != len(self.SOURCE_BONES):
+            props.bone_mappings.clear()
+            for bone_name in self.SOURCE_BONES:
+                item = props.bone_mappings.add()
+                item.source_bone = bone_name
+
+        # Draw the UI
+        box = layout.box()
+        for mapping in props.bone_mappings:
+            row = box.row()
+            row.label(text=mapping.source_bone)
+            # Create a searchable dropdown of the target armature's bones
+            row.prop_search(mapping, "target_bone", armature.data, "bones", text="")
+
+
 class BLENDIN_OT_create_sample_armature(bpy.types.Operator):
     """Create a sample armature for testing."""
     bl_idname = "blendin.create_sample_armature"
@@ -170,7 +228,74 @@ class BLENDIN_OT_create_test_character(bpy.types.Operator):
     bl_label = "Create Test Character"
 
     def execute(self, context):
-        # ... (omitted for brevity)
+        # Create a simple head shape (e.g., a subdivided cube)
+        bpy.ops.mesh.primitive_cube_add(size=0.5, location=(0, 0, 1.5))
+        head = context.active_object
+        head.name = "TestHead"
+        bpy.ops.object.modifier_add(type='SUBSURF')
+        head.modifiers["Subdivision"].levels = 2
+        head.modifiers["Subdivision"].render_levels = 2
+        bpy.ops.object.modifier_apply(modifier="Subdivision")
+        bpy.ops.object.shade_smooth()
+
+        # Add a basis shape key
+        head.shape_key_add(name="Basis")
+
+        # Add a 'mouth_open' shape key
+        mouth_open_sk = head.shape_key_add(name="mouth_open")
+        bpy.ops.object.mode_set(mode='EDIT')
+
+        # Select bottom vertices and move them down
+        bpy.ops.mesh.select_all(action='DESELECT')
+        bm = bmesh.from_edit_mesh(head.data)
+        for v in bm.verts:
+            if v.co.z < 1.3:
+                v.select = True
+        bmesh.update_edit_mesh(head.data)
+
+        bpy.context.tool_settings.proportional_edit = 'ENABLED'
+        bpy.ops.transform.translate(value=(0, 0, -0.1), orient_type='GLOBAL', orient_matrix_type='GLOBAL', orient_constraint='PLANE', mirror=True, use_proportional_edit=True, proportional_edit_falloff='SMOOTH', proportional_size=0.2, use_proportional_connected=False, use_proportional_projected=False)
+        bpy.context.tool_settings.proportional_edit = 'DISABLED'
+        bpy.ops.mesh.select_all(action='DESELECT')
+
+        bpy.ops.object.mode_set(mode='OBJECT')
+
+        # Add an 'eyebrows_up' shape key
+        eyebrows_up_sk = head.shape_key_add(name="eyebrows_up")
+        bpy.ops.object.mode_set(mode='EDIT')
+
+        # Select top vertices and move them up
+        bpy.ops.mesh.select_all(action='DESELECT')
+        bm = bmesh.from_edit_mesh(head.data)
+        for v in bm.verts:
+            if v.co.z > 1.7:
+                v.select = True
+        bmesh.update_edit_mesh(head.data)
+
+        bpy.context.tool_settings.proportional_edit = 'ENABLED'
+        bpy.ops.transform.translate(value=(0, 0, 0.1), orient_type='GLOBAL', orient_matrix_type='GLOBAL', orient_constraint='PLANE', mirror=True, use_proportional_edit=True, proportional_edit_falloff='SMOOTH', proportional_size=0.2, use_proportional_connected=False, use_proportional_projected=False)
+        bpy.context.tool_settings.proportional_edit = 'DISABLED'
+        bpy.ops.mesh.select_all(action='DESELECT')
+
+        bpy.ops.object.mode_set(mode='OBJECT')
+
+        # Add a 'jaw_open' shape key
+        jaw_open_sk = head.shape_key_add(name="jaw_open")
+        bpy.ops.object.mode_set(mode='EDIT')
+
+        # Select bottom vertices and move them down
+        bpy.ops.mesh.select_all(action='DESELECT')
+        bm = bmesh.from_edit_mesh(head.data)
+        for v in bm.verts:
+            if v.co.z < 1.3:
+                v.select = True
+        bmesh.update_edit_mesh(head.data)
+
+        bpy.ops.transform.translate(value=(0, 0, -0.2))
+        bpy.ops.mesh.select_all(action='DESELECT')
+
+        bpy.ops.object.mode_set(mode='OBJECT')
+
         return {'FINISHED'}
 
 class BLENDIN_OT_save_animation(bpy.types.Operator):
@@ -242,12 +367,44 @@ class BLENDIN_OT_export_gltf(bpy.types.Operator):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
+class BLENDIN_OT_generate_pose(bpy.types.Operator):
+    bl_idname = "blendin.generate_pose"
+    bl_label = "Generate Pose from Prompt"
+
+    def execute(self, context):
+        from ..core.dream_capture import DreamCapture
+
+        props = context.scene.blend_in_props
+        armature = bpy.data.objects.get(props.target_armature)
+
+        if not armature:
+            self.report({'ERROR'}, "Please select a target armature.")
+            return {'CANCELLED'}
+
+        # Ensure we are in POSE mode
+        if armature.mode != 'POSE':
+            bpy.context.view_layer.objects.active = armature
+            bpy.ops.object.mode_set(mode='POSE')
+
+        dream_capture = DreamCapture()
+        pose_data = dream_capture.get_pose_for_prompt(props.dream_prompt)
+
+        if pose_data:
+            dream_capture.apply_pose_to_armature(armature, pose_data)
+        else:
+            self.report({'WARNING'}, f"No pose found for prompt: {props.dream_prompt}")
+
+        return {'FINISHED'}
+
+
 def register():
     bpy.utils.register_class(BLENDIN_PT_main_panel)
     bpy.utils.register_class(BLENDIN_PT_rigging_panel)
     bpy.utils.register_class(BLENDIN_PT_motion_dna_panel)
     bpy.utils.register_class(BLENDIN_PT_export_panel)
     bpy.utils.register_class(BLENDIN_PT_facial_mapping_panel)
+    bpy.utils.register_class(BLENDIN_PT_dream_capture_panel)
+    bpy.utils.register_class(BLENDIN_PT_retargeting_panel)
     bpy.utils.register_class(BLENDIN_OT_create_sample_armature)
     bpy.utils.register_class(BLENDIN_OT_create_test_character)
     bpy.utils.register_class(BLENDIN_OT_save_animation)
@@ -255,6 +412,7 @@ def register():
     bpy.utils.register_class(BLENDIN_OT_delete_animation)
     bpy.utils.register_class(BLENDIN_OT_export_fbx)
     bpy.utils.register_class(BLENDIN_OT_export_gltf)
+    bpy.utils.register_class(BLENDIN_OT_generate_pose)
 
 def unregister():
     bpy.utils.unregister_class(BLENDIN_PT_main_panel)
@@ -262,6 +420,8 @@ def unregister():
     bpy.utils.unregister_class(BLENDIN_PT_motion_dna_panel)
     bpy.utils.unregister_class(BLENDIN_PT_export_panel)
     bpy.utils.unregister_class(BLENDIN_PT_facial_mapping_panel)
+    bpy.utils.unregister_class(BLENDIN_PT_dream_capture_panel)
+    bpy.utils.unregister_class(BLENDIN_PT_retargeting_panel)
     bpy.utils.unregister_class(BLENDIN_OT_create_sample_armature)
     bpy.utils.unregister_class(BLENDIN_OT_create_test_character)
     bpy.utils.unregister_class(BLENDIN_OT_save_animation)
@@ -269,3 +429,4 @@ def unregister():
     bpy.utils.unregister_class(BLENDIN_OT_delete_animation)
     bpy.utils.unregister_class(BLENDIN_OT_export_fbx)
     bpy.utils.unregister_class(BLENDIN_OT_export_gltf)
+    bpy.utils.unregister_class(BLENDIN_OT_generate_pose)

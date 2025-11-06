@@ -1,4 +1,5 @@
 import collections
+import numpy as np
 from mathutils import Quaternion
 
 class SmoothingFilter:
@@ -19,11 +20,11 @@ class SmoothingFilter:
                 data_queue = self.joint_data[joint_name]
                 data_queue.append(Quaternion(rotation))
 
-                # Simple linear interpolation for quaternions.
-                # A more advanced solution would use Slerp.
-                avg_rotation = Quaternion()
-                for q in data_queue:
-                    avg_rotation.slerp(q, 1.0 / len(data_queue))
+                # Correct quaternion averaging using eigenvector method
+                quats = np.array([list(q) for q in data_queue])
+                M = quats.T @ quats
+                _, v = np.linalg.eigh(M)
+                avg_rotation = v[:, -1]
 
                 smoothed_joints.append({"name": joint_name, "rotation": list(avg_rotation)})
 

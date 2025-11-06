@@ -1,4 +1,5 @@
 import bpy
+from .core.retargeting import BoneMapping
 
 class BlendInFacialMapping(bpy.types.PropertyGroup):
     name: bpy.props.StringProperty()
@@ -20,6 +21,16 @@ class BlendInFacialMapping(bpy.types.PropertyGroup):
             ('eyebrow_right', 'Right Eyebrow', ''),
         ]
     )
+
+def on_use_motion_debugger_update(self, context):
+    from .core.motion_debugger import _motion_debugger, MotionDebugger
+    if self.use_motion_debugger:
+        if _motion_debugger is None:
+            _motion_debugger = MotionDebugger()
+        _motion_debugger.start()
+    else:
+        if _motion_debugger:
+            _motion_debugger.stop()
 
 class BlendInProperties(bpy.types.PropertyGroup):
     use_smoothing: bpy.props.BoolProperty(
@@ -56,8 +67,22 @@ class BlendInProperties(bpy.types.PropertyGroup):
         description="Apply generative idle motion to the character",
         default=False,
     )
+    dream_prompt: bpy.props.StringProperty(
+        name="Dream Prompt",
+        description="Describe the pose you want to generate",
+        default="A character who is sad",
+    )
+    bone_mappings: bpy.props.CollectionProperty(type=BoneMapping)
+    use_motion_debugger: bpy.props.BoolProperty(
+        name="Use Motion Debugger",
+        description="Display real-time motion diagnostics in the viewport",
+        default=False,
+        update=on_use_motion_debugger_update,
+    )
+
 
 def register():
+    bpy.utils.register_class(BoneMapping)
     bpy.utils.register_class(BlendInFacialMapping)
     bpy.utils.register_class(BlendInProperties)
     bpy.types.Scene.blend_in_props = bpy.props.PointerProperty(type=BlendInProperties)
@@ -66,3 +91,4 @@ def unregister():
     del bpy.types.Scene.blend_in_props
     bpy.utils.unregister_class(BlendInProperties)
     bpy.utils.unregister_class(BlendInFacialMapping)
+    bpy.utils.unregister_class(BoneMapping)
