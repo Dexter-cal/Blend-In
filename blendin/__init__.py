@@ -51,7 +51,7 @@ class BLENDIN_PT_dependency_panel(bpy.types.Panel):
 
 from . import properties
 from .core import animation, rigging
-from .ui import panels
+from .ui import panels, operators
 
 def register():
     bpy.utils.register_class(BLENDIN_OT_install_dependencies)
@@ -62,6 +62,7 @@ def register():
         animation.register()
         rigging.register()
         panels.register()
+        operators.register()
         print("Blend-In addon registered.")
 
 def unregister():
@@ -73,4 +74,5 @@ def unregister():
         animation.unregister()
         rigging.unregister()
         panels.unregister()
+        operators.unregister()
         print("Blend-In addon unregistered.")

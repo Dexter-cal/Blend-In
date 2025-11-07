@@ -1,6 +1,6 @@
 from mathutils import Vector
 
-def calculate_blendshape_value(landmarks, upper_landmark, lower_landmark):
+def calculate_blendshape_value(landmarks, upper_landmark, lower_landmark, baseline_distance, sensitivity):
     """
     Calculates a blendshape value based on the vertical distance
     between two landmarks.
@@ -14,12 +14,7 @@ def calculate_blendshape_value(landmarks, upper_landmark, lower_landmark):
     # Using the y-axis for vertical distance as a simple starting point
     distance = abs(upper_pos.y - lower_pos.y)
 
-    # This will need to be calibrated. For now, let's assume a
-    # baseline distance and map the change.
-    # A more robust solution would involve normalization.
-    baseline_distance = 0.02 # an arbitrary baseline
-
-    value = (distance - baseline_distance) * 20 # arbitrary multiplier
+    value = (distance - baseline_distance) * sensitivity
 
     # Clamp the value between 0 and 1
     return max(0.0, min(1.0, value))
@@ -37,7 +32,9 @@ class FacialMapper:
             if blendshape:
                 upper = landmark_info.get("upper")
                 lower = landmark_info.get("lower")
+                baseline = landmark_info.get("baseline", 0.02)
+                sensitivity = landmark_info.get("sensitivity", 20.0)
 
                 if upper and lower:
-                    value = calculate_blendshape_value(landmarks, upper, lower)
+                    value = calculate_blendshape_value(landmarks, upper, lower, baseline, sensitivity)
                     blendshape.value = value

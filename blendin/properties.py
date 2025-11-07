@@ -3,6 +3,20 @@ from .core.retargeting import BoneMapping
 
 class BlendInFacialMapping(bpy.types.PropertyGroup):
     name: bpy.props.StringProperty()
+    baseline_distance: bpy.props.FloatProperty(
+        name="Baseline Distance",
+        description="The neutral distance between the landmarks for this blendshape",
+        default=0.02,
+        min=0.0,
+        soft_max=0.2,
+    )
+    sensitivity: bpy.props.FloatProperty(
+        name="Sensitivity",
+        description="How sensitive the blendshape is to landmark movement",
+        default=20.0,
+        min=0.0,
+        soft_max=100.0,
+    )
     upper_landmark: bpy.props.EnumProperty(
         name="Upper Landmark",
         items=[

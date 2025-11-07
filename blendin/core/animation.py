@@ -1,6 +1,7 @@
 import bpy
 import time
-from mathutils import Quaternion
+import math
+from mathutils import Quaternion, Euler
 from ..comms.websocket_client import get_client
 from .facial_mapping import FacialMapper
 from .smoothing import SmoothingFilter
@@ -18,6 +19,8 @@ class LiveAnimationOperator(bpy.types.Operator):
     _smoothing_filter = None
     _motion_texture_generator = None
     _start_time = 0
+    _armature = None
+    _mesh = None
 
     def modal(self, context, event):
         if event.type == 'TIMER':
@@ -47,7 +50,7 @@ class LiveAnimationOperator(bpy.types.Operator):
 
                     # --- Skeletal Animation ---
                     if 'joints' in data:
-                        armature = bpy.data.objects.get(props.target_armature)
+                        armature = self._armature
 
                         # Create a dictionary of source rotations
                         source_rotations = {
@@ -75,10 +78,15 @@ class LiveAnimationOperator(bpy.types.Operator):
 
                     # --- Facial Animation ---
                     if 'facial_landmarks' in data:
-                        target_mesh = bpy.data.objects.get(props.target_mesh)
+                        target_mesh = self._mesh
                         if self._facial_mapper is None or self.mappings_changed(props.facial_mappings):
                             mapping_config = {
-                                m.name: {"upper": m.upper_landmark, "lower": m.lower_landmark}
+                                m.name: {
+                                    "upper": m.upper_landmark,
+                                    "lower": m.lower_landmark,
+                                    "baseline": m.baseline_distance,
+                                    "sensitivity": m.sensitivity,
+                                }
                                 for m in props.facial_mappings
                             }
                             self._facial_mapper = FacialMapper(mapping_config)
@@ -93,7 +101,7 @@ class LiveAnimationOperator(bpy.types.Operator):
 
                     # --- Vocal Animation ---
                     if 'vocal_energy' in data:
-                        target_mesh = bpy.data.objects.get(props.target_mesh)
+                        target_mesh = self._mesh
                         if target_mesh and target_mesh.data.shape_keys:
                             jaw_open_bs = target_mesh.data.shape_keys.key_blocks.get("jaw_open")
                             if jaw_open_bs:
@@ -104,8 +112,7 @@ class LiveAnimationOperator(bpy.types.Operator):
                     # --- Update Debugger ---
                     global _motion_debugger
                     if _motion_debugger:
-                        armature = bpy.data.objects.get(context.scene.blend_in_props.target_armature)
-                        _motion_debugger.update(armature)
+                        _motion_debugger.update(self._armature)
 
         elif event.type in {'RIGHTMOUSE', 'ESC'}:
             self.cancel(context)
@@ -128,14 +135,15 @@ class LiveAnimationOperator(bpy.types.Operator):
         return False
 
     def execute(self, context):
-        target_armature_name = context.scene.blend_in_props.target_armature
-        target_mesh_name = context.scene.blend_in_props.target_mesh
+        props = context.scene.blend_in_props
+        self._armature = bpy.data.objects.get(props.target_armature)
+        self._mesh = bpy.data.objects.get(props.target_mesh)
 
-        if not target_armature_name and not target_mesh_name:
+        if not self._armature and not self._mesh:
             self.report({'ERROR'}, "Please select a target armature or mesh.")
             return {'CANCELLED'}
 
-        if target_armature_name and bpy.data.objects.get(target_armature_name):
+        if self._armature:
             bpy.ops.object.mode_set(mode='POSE')
 
         wm = context.window_manager
