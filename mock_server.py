@@ -47,11 +47,17 @@ async def send_mock_data(websocket, path):
         # --- Vocal Data ---
         vocal_energy = (math.sin(t * 2.5) + 1) / 2 # Fluctuates between 0 and 1
 
+        # --- Eye Gaze Data ---
+        eye_gaze_x = math.sin(t * 0.8) * 0.8 # Horizontal gaze
+        eye_gaze_y = math.cos(t * 0.6) * 0.6 # Vertical gaze
+        eye_gaze_data = [eye_gaze_x, eye_gaze_y]
+
         # --- Combined Packet ---
         mock_data = {
             "joints": skeletal_data,
             "facial_landmarks": facial_landmarks,
-            "vocal_energy": vocal_energy
+            "vocal_energy": vocal_energy,
+            "eye_gaze": eye_gaze_data
         }
 
         await websocket.send(json.dumps(mock_data))

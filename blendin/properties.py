@@ -80,6 +80,37 @@ class BlendInProperties(bpy.types.PropertyGroup):
         update=on_use_motion_debugger_update,
     )
 
+    # --- Eye Gaze Properties ---
+    enable_eye_gaze: bpy.props.BoolProperty(
+        name="Enable Eye Gaze",
+        description="Drive eye bones based on gaze data",
+        default=False,
+    )
+    left_eye_bone: bpy.props.StringProperty(
+        name="Left Eye Bone",
+        description="The name of the bone for the left eye",
+        default="eye.L",
+    )
+    right_eye_bone: bpy.props.StringProperty(
+        name="Right Eye Bone",
+        description="The name of the bone for the right eye",
+        default="eye.R",
+    )
+    eye_gaze_sensitivity_x: bpy.props.FloatProperty(
+        name="Horizontal Sensitivity",
+        description="Controls the horizontal range of eye motion",
+        default=1.0,
+        min=0.0,
+        max=2.0,
+    )
+    eye_gaze_sensitivity_y: bpy.props.FloatProperty(
+        name="Vertical Sensitivity",
+        description="Controls the vertical range of eye motion",
+        default=1.0,
+        min=0.0,
+        max=2.0,
+    )
+
 
 def register():
     bpy.utils.register_class(BoneMapping)

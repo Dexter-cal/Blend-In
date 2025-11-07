@@ -1,6 +1,7 @@
 import bpy
 import time
-from mathutils import Quaternion
+import math
+from mathutils import Quaternion, Euler
 from ..comms.websocket_client import get_client
 from .facial_mapping import FacialMapper
 from .smoothing import SmoothingFilter
@@ -100,6 +101,38 @@ class LiveAnimationOperator(bpy.types.Operator):
                                 jaw_open_bs.value = data['vocal_energy']
                                 if props.is_recording:
                                     jaw_open_bs.keyframe_insert(data_path="value", frame=context.scene.frame_current)
+
+                    # --- Eye Gaze ---
+                    if 'eye_gaze' in data and props.enable_eye_gaze:
+                        armature = bpy.data.objects.get(props.target_armature)
+                        if armature and armature.mode == 'POSE':
+                            left_eye_bone = armature.pose.bones.get(props.left_eye_bone)
+                            right_eye_bone = armature.pose.bones.get(props.right_eye_bone)
+
+                            gaze_x, gaze_y = data['eye_gaze']
+
+                            # Convert 2D gaze vector to rotation
+                            # We'll map x gaze to yaw (Z-axis) and y gaze to pitch (X-axis)
+                            # We negate gaze_y because in Blender, a positive X rotation is downwards
+                            yaw_z = gaze_x * props.eye_gaze_sensitivity_x
+                            pitch_x = -gaze_y * props.eye_gaze_sensitivity_y
+
+                            # We create an Euler rotation. In 'XYZ' order, this corresponds to (pitch, roll, yaw)
+                            # We want no roll, so the Y component is 0.
+                            rotation = Euler((pitch_x, 0, yaw_z), 'XYZ')
+                            gaze_quaternion = rotation.to_quaternion()
+
+                            if left_eye_bone:
+                                # Set rotation using quaternions to be consistent with skeleton animation
+                                left_eye_bone.rotation_quaternion = gaze_quaternion
+                                if props.is_recording:
+                                    left_eye_bone.keyframe_insert(data_path="rotation_quaternion", frame=context.scene.frame_current)
+
+                            if right_eye_bone:
+                                # Set rotation using quaternions
+                                right_eye_bone.rotation_quaternion = gaze_quaternion
+                                if props.is_recording:
+                                    right_eye_bone.keyframe_insert(data_path="rotation_quaternion", frame=context.scene.frame_current)
 
                     # --- Update Debugger ---
                     global _motion_debugger

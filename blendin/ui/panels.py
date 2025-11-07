@@ -195,6 +195,36 @@ class BLENDIN_PT_retargeting_panel(bpy.types.Panel):
             # Create a searchable dropdown of the target armature's bones
             row.prop_search(mapping, "target_bone", armature.data, "bones", text="")
 
+class BLENDIN_PT_eye_gaze_panel(bpy.types.Panel):
+    bl_label = "Eye Gaze"
+    bl_idname = "BLENDIN_PT_eye_gaze_panel"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = 'Blend-In'
+    bl_parent_id = "BLENDIN_PT_main_panel"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
+        layout = self.layout
+        props = context.scene.blend_in_props
+        armature = bpy.data.objects.get(props.target_armature)
+
+        if not armature or armature.type != 'ARMATURE':
+            layout.label(text="Select a target armature.")
+            return
+
+        box = layout.box()
+        row = box.row()
+        row.prop(props, "enable_eye_gaze")
+        row = box.row()
+        row.prop_search(props, "left_eye_bone", armature.data, "bones", text="Left")
+        row = box.row()
+        row.prop_search(props, "right_eye_bone", armature.data, "bones", text="Right")
+        row = box.row()
+        row.prop(props, "eye_gaze_sensitivity_x")
+        row = box.row()
+        row.prop(props, "eye_gaze_sensitivity_y")
+
 
 class BLENDIN_OT_create_sample_armature(bpy.types.Operator):
     # ... (omitted for brevity)
@@ -262,6 +292,7 @@ def register():
     bpy.utils.register_class(BLENDIN_PT_facial_mapping_panel)
     bpy.utils.register_class(BLENDIN_PT_dream_capture_panel)
     bpy.utils.register_class(BLENDIN_PT_retargeting_panel)
+    bpy.utils.register_class(BLENDIN_PT_eye_gaze_panel)
     bpy.utils.register_class(BLENDIN_OT_create_sample_armature)
     bpy.utils.register_class(BLENDIN_OT_create_test_character)
     bpy.utils.register_class(BLENDIN_OT_save_animation)
@@ -279,6 +310,7 @@ def unregister():
     bpy.utils.unregister_class(BLENDIN_PT_facial_mapping_panel)
     bpy.utils.unregister_class(BLENDIN_PT_dream_capture_panel)
     bpy.utils.unregister_class(BLENDIN_PT_retargeting_panel)
+    bpy.utils.unregister_class(BLENDIN_PT_eye_gaze_panel)
     bpy.utils.unregister_class(BLENDIN_OT_create_sample_armature)
     bpy.utils.unregister_class(BLENDIN_OT_create_test_character)
     bpy.utils.unregister_class(BLENDIN_OT_save_animation)
