@@ -19,6 +19,8 @@ class LiveAnimationOperator(bpy.types.Operator):
     _smoothing_filter = None
     _motion_texture_generator = None
     _start_time = 0
+    _armature = None
+    _mesh = None
 
     def modal(self, context, event):
         if event.type == 'TIMER':
@@ -48,7 +50,7 @@ class LiveAnimationOperator(bpy.types.Operator):
 
                     # --- Skeletal Animation ---
                     if 'joints' in data:
-                        armature = bpy.data.objects.get(props.target_armature)
+                        armature = self._armature
 
                         # Create a dictionary of source rotations
                         source_rotations = {
@@ -76,10 +78,15 @@ class LiveAnimationOperator(bpy.types.Operator):
 
                     # --- Facial Animation ---
                     if 'facial_landmarks' in data:
-                        target_mesh = bpy.data.objects.get(props.target_mesh)
+                        target_mesh = self._mesh
                         if self._facial_mapper is None or self.mappings_changed(props.facial_mappings):
                             mapping_config = {
-                                m.name: {"upper": m.upper_landmark, "lower": m.lower_landmark}
+                                m.name: {
+                                    "upper": m.upper_landmark,
+                                    "lower": m.lower_landmark,
+                                    "baseline": m.baseline_distance,
+                                    "sensitivity": m.sensitivity,
+                                }
                                 for m in props.facial_mappings
                             }
                             self._facial_mapper = FacialMapper(mapping_config)
@@ -94,7 +101,7 @@ class LiveAnimationOperator(bpy.types.Operator):
 
                     # --- Vocal Animation ---
                     if 'vocal_energy' in data:
-                        target_mesh = bpy.data.objects.get(props.target_mesh)
+                        target_mesh = self._mesh
                         if target_mesh and target_mesh.data.shape_keys:
                             jaw_open_bs = target_mesh.data.shape_keys.key_blocks.get("jaw_open")
                             if jaw_open_bs:
@@ -102,43 +109,10 @@ class LiveAnimationOperator(bpy.types.Operator):
                                 if props.is_recording:
                                     jaw_open_bs.keyframe_insert(data_path="value", frame=context.scene.frame_current)
 
-                    # --- Eye Gaze ---
-                    if 'eye_gaze' in data and props.enable_eye_gaze:
-                        armature = bpy.data.objects.get(props.target_armature)
-                        if armature and armature.mode == 'POSE':
-                            left_eye_bone = armature.pose.bones.get(props.left_eye_bone)
-                            right_eye_bone = armature.pose.bones.get(props.right_eye_bone)
-
-                            gaze_x, gaze_y = data['eye_gaze']
-
-                            # Convert 2D gaze vector to rotation
-                            # We'll map x gaze to yaw (Z-axis) and y gaze to pitch (X-axis)
-                            # We negate gaze_y because in Blender, a positive X rotation is downwards
-                            yaw_z = gaze_x * props.eye_gaze_sensitivity_x
-                            pitch_x = -gaze_y * props.eye_gaze_sensitivity_y
-
-                            # We create an Euler rotation. In 'XYZ' order, this corresponds to (pitch, roll, yaw)
-                            # We want no roll, so the Y component is 0.
-                            rotation = Euler((pitch_x, 0, yaw_z), 'XYZ')
-                            gaze_quaternion = rotation.to_quaternion()
-
-                            if left_eye_bone:
-                                # Set rotation using quaternions to be consistent with skeleton animation
-                                left_eye_bone.rotation_quaternion = gaze_quaternion
-                                if props.is_recording:
-                                    left_eye_bone.keyframe_insert(data_path="rotation_quaternion", frame=context.scene.frame_current)
-
-                            if right_eye_bone:
-                                # Set rotation using quaternions
-                                right_eye_bone.rotation_quaternion = gaze_quaternion
-                                if props.is_recording:
-                                    right_eye_bone.keyframe_insert(data_path="rotation_quaternion", frame=context.scene.frame_current)
-
                     # --- Update Debugger ---
                     global _motion_debugger
                     if _motion_debugger:
-                        armature = bpy.data.objects.get(context.scene.blend_in_props.target_armature)
-                        _motion_debugger.update(armature)
+                        _motion_debugger.update(self._armature)
 
         elif event.type in {'RIGHTMOUSE', 'ESC'}:
             self.cancel(context)
@@ -161,14 +135,15 @@ class LiveAnimationOperator(bpy.types.Operator):
         return False
 
     def execute(self, context):
-        target_armature_name = context.scene.blend_in_props.target_armature
-        target_mesh_name = context.scene.blend_in_props.target_mesh
+        props = context.scene.blend_in_props
+        self._armature = bpy.data.objects.get(props.target_armature)
+        self._mesh = bpy.data.objects.get(props.target_mesh)
 
-        if not target_armature_name and not target_mesh_name:
+        if not self._armature and not self._mesh:
             self.report({'ERROR'}, "Please select a target armature or mesh.")
             return {'CANCELLED'}
 
-        if target_armature_name and bpy.data.objects.get(target_armature_name):
+        if self._armature:
             bpy.ops.object.mode_set(mode='POSE')
 
         wm = context.window_manager

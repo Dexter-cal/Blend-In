@@ -3,6 +3,20 @@ from .core.retargeting import BoneMapping
 
 class BlendInFacialMapping(bpy.types.PropertyGroup):
     name: bpy.props.StringProperty()
+    baseline_distance: bpy.props.FloatProperty(
+        name="Baseline Distance",
+        description="The neutral distance between the landmarks for this blendshape",
+        default=0.02,
+        min=0.0,
+        soft_max=0.2,
+    )
+    sensitivity: bpy.props.FloatProperty(
+        name="Sensitivity",
+        description="How sensitive the blendshape is to landmark movement",
+        default=20.0,
+        min=0.0,
+        soft_max=100.0,
+    )
     upper_landmark: bpy.props.EnumProperty(
         name="Upper Landmark",
         items=[
@@ -78,37 +92,6 @@ class BlendInProperties(bpy.types.PropertyGroup):
         description="Display real-time motion diagnostics in the viewport",
         default=False,
         update=on_use_motion_debugger_update,
-    )
-
-    # --- Eye Gaze Properties ---
-    enable_eye_gaze: bpy.props.BoolProperty(
-        name="Enable Eye Gaze",
-        description="Drive eye bones based on gaze data",
-        default=False,
-    )
-    left_eye_bone: bpy.props.StringProperty(
-        name="Left Eye Bone",
-        description="The name of the bone for the left eye",
-        default="eye.L",
-    )
-    right_eye_bone: bpy.props.StringProperty(
-        name="Right Eye Bone",
-        description="The name of the bone for the right eye",
-        default="eye.R",
-    )
-    eye_gaze_sensitivity_x: bpy.props.FloatProperty(
-        name="Horizontal Sensitivity",
-        description="Controls the horizontal range of eye motion",
-        default=1.0,
-        min=0.0,
-        max=2.0,
-    )
-    eye_gaze_sensitivity_y: bpy.props.FloatProperty(
-        name="Vertical Sensitivity",
-        description="Controls the vertical range of eye motion",
-        default=1.0,
-        min=0.0,
-        max=2.0,
     )
 
 

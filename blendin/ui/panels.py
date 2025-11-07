@@ -139,6 +139,10 @@ class BLENDIN_PT_facial_mapping_panel(bpy.types.Panel):
                 row.prop(mapping, "upper_landmark", text="Upper")
                 row = box.row()
                 row.prop(mapping, "lower_landmark", text="Lower")
+                row = box.row()
+                row.prop(mapping, "baseline_distance", text="Baseline")
+                row = box.row()
+                row.prop(mapping, "sensitivity", text="Sensitivity")
 
 class BLENDIN_PT_dream_capture_panel(bpy.types.Panel):
     bl_label = "Dream Capture"
@@ -195,95 +199,6 @@ class BLENDIN_PT_retargeting_panel(bpy.types.Panel):
             # Create a searchable dropdown of the target armature's bones
             row.prop_search(mapping, "target_bone", armature.data, "bones", text="")
 
-class BLENDIN_PT_eye_gaze_panel(bpy.types.Panel):
-    bl_label = "Eye Gaze"
-    bl_idname = "BLENDIN_PT_eye_gaze_panel"
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'
-    bl_category = 'Blend-In'
-    bl_parent_id = "BLENDIN_PT_main_panel"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    def draw(self, context):
-        layout = self.layout
-        props = context.scene.blend_in_props
-        armature = bpy.data.objects.get(props.target_armature)
-
-        if not armature or armature.type != 'ARMATURE':
-            layout.label(text="Select a target armature.")
-            return
-
-        box = layout.box()
-        row = box.row()
-        row.prop(props, "enable_eye_gaze")
-        row = box.row()
-        row.prop_search(props, "left_eye_bone", armature.data, "bones", text="Left")
-        row = box.row()
-        row.prop_search(props, "right_eye_bone", armature.data, "bones", text="Right")
-        row = box.row()
-        row.prop(props, "eye_gaze_sensitivity_x")
-        row = box.row()
-        row.prop(props, "eye_gaze_sensitivity_y")
-
-
-class BLENDIN_OT_create_sample_armature(bpy.types.Operator):
-    # ... (omitted for brevity)
-    pass
-
-class BLENDIN_OT_create_test_character(bpy.types.Operator):
-    # ... (omitted for brevity)
-    pass
-
-class BLENDIN_OT_save_animation(bpy.types.Operator):
-    # ... (omitted for brevity)
-    pass
-
-class BLENDIN_OT_load_animation(bpy.types.Operator):
-    # ... (omitted for brevity)
-    pass
-
-class BLENDIN_OT_delete_animation(bpy.types.Operator):
-    # ... (omitted for brevity)
-    pass
-
-class BLENDIN_OT_export_fbx(bpy.types.Operator):
-    # ... (omitted for brevity)
-    pass
-
-class BLENDIN_OT_export_gltf(bpy.types.Operator):
-    # ... (omitted for brevity)
-    pass
-
-class BLENDIN_OT_generate_animation(bpy.types.Operator):
-    bl_idname = "blendin.generate_animation"
-    bl_label = "Generate Animation from Prompt"
-
-    def execute(self, context):
-        from ..core.dream_capture import DreamCapture
-
-        props = context.scene.blend_in_props
-        armature = bpy.data.objects.get(props.target_armature)
-
-        if not armature:
-            self.report({'ERROR'}, "Please select a target armature.")
-            return {'CANCELLED'}
-
-        # Ensure we are in POSE mode
-        if armature.mode != 'POSE':
-            bpy.context.view_layer.objects.active = armature
-            bpy.ops.object.mode_set(mode='POSE')
-
-        dream_capture = DreamCapture()
-        animation_data = dream_capture.get_animation_for_prompt(props.dream_prompt)
-
-        if animation_data:
-            dream_capture.apply_animation_to_armature(armature, animation_data)
-        else:
-            self.report({'WARNING'}, f"No animation found for prompt: {props.dream_prompt}")
-
-        return {'FINISHED'}
-
-
 def register():
     bpy.utils.register_class(BLENDIN_PT_main_panel)
     bpy.utils.register_class(BLENDIN_PT_rigging_panel)
@@ -292,15 +207,6 @@ def register():
     bpy.utils.register_class(BLENDIN_PT_facial_mapping_panel)
     bpy.utils.register_class(BLENDIN_PT_dream_capture_panel)
     bpy.utils.register_class(BLENDIN_PT_retargeting_panel)
-    bpy.utils.register_class(BLENDIN_PT_eye_gaze_panel)
-    bpy.utils.register_class(BLENDIN_OT_create_sample_armature)
-    bpy.utils.register_class(BLENDIN_OT_create_test_character)
-    bpy.utils.register_class(BLENDIN_OT_save_animation)
-    bpy.utils.register_class(BLENDIN_OT_load_animation)
-    bpy.utils.register_class(BLENDIN_OT_delete_animation)
-    bpy.utils.register_class(BLENDIN_OT_export_fbx)
-    bpy.utils.register_class(BLENDIN_OT_export_gltf)
-    bpy.utils.register_class(BLENDIN_OT_generate_animation)
 
 def unregister():
     bpy.utils.unregister_class(BLENDIN_PT_main_panel)
@@ -310,12 +216,3 @@ def unregister():
     bpy.utils.unregister_class(BLENDIN_PT_facial_mapping_panel)
     bpy.utils.unregister_class(BLENDIN_PT_dream_capture_panel)
     bpy.utils.unregister_class(BLENDIN_PT_retargeting_panel)
-    bpy.utils.unregister_class(BLENDIN_PT_eye_gaze_panel)
-    bpy.utils.unregister_class(BLENDIN_OT_create_sample_armature)
-    bpy.utils.unregister_class(BLENDIN_OT_create_test_character)
-    bpy.utils.unregister_class(BLENDIN_OT_save_animation)
-    bpy.utils.unregister_class(BLENDIN_OT_load_animation)
-    bpy.utils.unregister_class(BLENDIN_OT_delete_animation)
-    bpy.utils.unregister_class(BLENDIN_OT_export_fbx)
-    bpy.utils.unregister_class(BLENDIN_OT_export_gltf)
-    bpy.utils.unregister_class(BLENDIN_OT_generate_animation)
