@@ -32,6 +32,35 @@ class BLENDIN_PT_main_panel(bpy.types.Panel):
         row = layout.row()
         row.prop(props, "is_recording", text="Record", toggle=True)
 
+class BLENDIN_PT_connection_panel(bpy.types.Panel):
+    bl_label = "Connection"
+    bl_idname = "BLENDIN_PT_connection_panel"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = 'Blend-In'
+    bl_parent_id = "BLENDIN_PT_main_panel"
+
+    def draw(self, context):
+        layout = self.layout
+        props = context.scene.blend_in_props
+
+        box = layout.box()
+        row = box.row()
+        row.label(text="Status:")
+
+        status_icon = 'CHECKMARK' if props.is_connected else 'X'
+        status_text = "Connected" if props.is_connected else "Disconnected"
+        row.label(text=status_text, icon=status_icon)
+
+        row = box.row()
+        row.prop(props, "websocket_host")
+        row = box.row()
+        row.prop(props, "websocket_port")
+
+        row = box.row()
+        op_text = "Disconnect" if props.is_connected else "Connect"
+        row.operator("blendin.connect_toggle", text=op_text)
+
 class BLENDIN_PT_rigging_panel(bpy.types.Panel):
     bl_label = "Rigging"
     bl_idname = "BLENDIN_PT_rigging_panel"
@@ -201,6 +230,7 @@ class BLENDIN_PT_retargeting_panel(bpy.types.Panel):
 
 def register():
     bpy.utils.register_class(BLENDIN_PT_main_panel)
+    bpy.utils.register_class(BLENDIN_PT_connection_panel)
     bpy.utils.register_class(BLENDIN_PT_rigging_panel)
     bpy.utils.register_class(BLENDIN_PT_motion_dna_panel)
     bpy.utils.register_class(BLENDIN_PT_export_panel)
@@ -210,6 +240,7 @@ def register():
 
 def unregister():
     bpy.utils.unregister_class(BLENDIN_PT_main_panel)
+    bpy.utils.unregister_class(BLENDIN_PT_connection_panel)
     bpy.utils.unregister_class(BLENDIN_PT_rigging_panel)
     bpy.utils.unregister_class(BLENDIN_PT_motion_dna_panel)
     bpy.utils.unregister_class(BLENDIN_PT_export_panel)

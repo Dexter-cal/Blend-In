@@ -2,6 +2,7 @@ import asyncio
 import websockets
 import json
 import threading
+import bpy
 
 class WebsocketClient:
     def __init__(self, uri):
@@ -28,6 +29,9 @@ class WebsocketClient:
         if self.thread:
             self.thread.join()
 
+        if bpy.context.scene:
+            bpy.context.scene.blend_in_props.is_connected = False
+
     def run(self):
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
@@ -41,15 +45,16 @@ class WebsocketClient:
             try:
                 async with websockets.connect(self.uri) as websocket:
                     print("Connected to WebSocket server.")
+                    bpy.context.scene.blend_in_props.is_connected = True
                     while self.running:
                         message = await websocket.recv()
                         data = json.loads(message)
                         with self.lock:
                             self.latest_data = data
-                        # Optional: print to verify the new data structure
-                        # print(f"Received data: {data.keys()}")
             except Exception as e:
                 print(f"WebSocket connection error: {e}")
+                if bpy.context.scene:
+                    bpy.context.scene.blend_in_props.is_connected = False
                 await asyncio.sleep(5)
 
 client = None
@@ -58,12 +63,20 @@ def get_client():
     global client
     return client
 
-def start_client():
+def start_client(host, port):
     global client
     if client is None:
-        client = WebsocketClient("ws://localhost:8765")
-        client.start()
-    print("WebSocket client started.")
+        try:
+            uri = f"ws://{host}:{port}"
+            client = WebsocketClient(uri)
+            client.start()
+            print(f"WebSocket client started for {uri}")
+            return True
+        except Exception as e:
+            print(f"Failed to start WebSocket client: {e}")
+            client = None
+            return False
+    return True
 
 def stop_client():
     global client

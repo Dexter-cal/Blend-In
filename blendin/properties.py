@@ -94,6 +94,25 @@ class BlendInProperties(bpy.types.PropertyGroup):
         update=on_use_motion_debugger_update,
     )
 
+    # --- Connection Properties ---
+    websocket_host: bpy.props.StringProperty(
+        name="Host",
+        description="The hostname or IP address of the WebSocket server",
+        default="localhost",
+    )
+    websocket_port: bpy.props.IntProperty(
+        name="Port",
+        description="The port of the WebSocket server",
+        default=8765,
+        min=1,
+        max=65535,
+    )
+    is_connected: bpy.props.BoolProperty(
+        name="Is Connected",
+        description="The current status of the WebSocket connection",
+        default=False,
+    )
+
 
 def register():
     bpy.utils.register_class(BoneMapping)

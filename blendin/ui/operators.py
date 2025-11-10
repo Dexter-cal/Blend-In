@@ -3,6 +3,29 @@ from mathutils import Vector
 import bmesh
 from ..core import motion_db
 from ..core.dream_capture import DreamCapture
+from ..comms import websocket_client
+
+class BLENDIN_OT_connect_toggle(bpy.types.Operator):
+    bl_idname = "blendin.connect_toggle"
+    bl_label = "Connect/Disconnect WebSocket"
+
+    def execute(self, context):
+        props = context.scene.blend_in_props
+        if props.is_connected:
+            # Disconnect
+            websocket_client.stop_client()
+            props.is_connected = False
+            self.report({'INFO'}, "Disconnected from WebSocket server.")
+        else:
+            # Connect
+            success = websocket_client.start_client(props.websocket_host, props.websocket_port)
+            if success:
+                props.is_connected = True
+                self.report({'INFO'}, f"Connecting to ws://{props.websocket_host}:{props.websocket_port}")
+            else:
+                props.is_connected = False
+                self.report({'ERROR'}, "Failed to connect to WebSocket server.")
+        return {'FINISHED'}
 
 class BLENDIN_OT_create_sample_armature(bpy.types.Operator):
     bl_idname = "blendin.create_sample_armature"
@@ -169,6 +192,7 @@ class BLENDIN_OT_generate_animation(bpy.types.Operator):
         return {'FINISHED'}
 
 def register():
+    bpy.utils.register_class(BLENDIN_OT_connect_toggle)
     bpy.utils.register_class(BLENDIN_OT_create_sample_armature)
     bpy.utils.register_class(BLENDIN_OT_create_test_character)
     bpy.utils.register_class(BLENDIN_OT_save_animation)
@@ -179,6 +203,7 @@ def register():
     bpy.utils.register_class(BLENDIN_OT_generate_animation)
 
 def unregister():
+    bpy.utils.unregister_class(BLENDIN_OT_connect_toggle)
     bpy.utils.unregister_class(BLENDIN_OT_create_sample_armature)
     bpy.utils.unregister_class(BLENDIN_OT_create_test_character)
     bpy.utils.unregister_class(BLENDIN_OT_save_animation)
