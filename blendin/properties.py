@@ -3,20 +3,6 @@ from .core.retargeting import BoneMapping
 
 class BlendInFacialMapping(bpy.types.PropertyGroup):
     name: bpy.props.StringProperty()
-    baseline_distance: bpy.props.FloatProperty(
-        name="Baseline Distance",
-        description="The neutral distance between the landmarks for this blendshape",
-        default=0.02,
-        min=0.0,
-        soft_max=0.2,
-    )
-    sensitivity: bpy.props.FloatProperty(
-        name="Sensitivity",
-        description="How sensitive the blendshape is to landmark movement",
-        default=20.0,
-        min=0.0,
-        soft_max=100.0,
-    )
     upper_landmark: bpy.props.EnumProperty(
         name="Upper Landmark",
         items=[
@@ -86,31 +72,17 @@ class BlendInProperties(bpy.types.PropertyGroup):
         description="Describe the pose you want to generate",
         default="A character who is sad",
     )
+    dream_capture_status: bpy.props.StringProperty(
+        name="Status",
+        description="The current status of the Dream Capture operation",
+        default="Ready",
+    )
     bone_mappings: bpy.props.CollectionProperty(type=BoneMapping)
     use_motion_debugger: bpy.props.BoolProperty(
         name="Use Motion Debugger",
         description="Display real-time motion diagnostics in the viewport",
         default=False,
         update=on_use_motion_debugger_update,
-    )
-
-    # --- Connection Properties ---
-    websocket_host: bpy.props.StringProperty(
-        name="Host",
-        description="The hostname or IP address of the WebSocket server",
-        default="localhost",
-    )
-    websocket_port: bpy.props.IntProperty(
-        name="Port",
-        description="The port of the WebSocket server",
-        default=8765,
-        min=1,
-        max=65535,
-    )
-    is_connected: bpy.props.BoolProperty(
-        name="Is Connected",
-        description="The current status of the WebSocket connection",
-        default=False,
     )
 
 

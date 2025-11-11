@@ -1,31 +1,9 @@
 import bpy
 from mathutils import Vector
 import bmesh
+import threading
 from ..core import motion_db
 from ..core.dream_capture import DreamCapture
-from ..comms import websocket_client
-
-class BLENDIN_OT_connect_toggle(bpy.types.Operator):
-    bl_idname = "blendin.connect_toggle"
-    bl_label = "Connect/Disconnect WebSocket"
-
-    def execute(self, context):
-        props = context.scene.blend_in_props
-        if props.is_connected:
-            # Disconnect
-            websocket_client.stop_client()
-            props.is_connected = False
-            self.report({'INFO'}, "Disconnected from WebSocket server.")
-        else:
-            # Connect
-            success = websocket_client.start_client(props.websocket_host, props.websocket_port)
-            if success:
-                props.is_connected = True
-                self.report({'INFO'}, f"Connecting to ws://{props.websocket_host}:{props.websocket_port}")
-            else:
-                props.is_connected = False
-                self.report({'ERROR'}, "Failed to connect to WebSocket server.")
-        return {'FINISHED'}
 
 class BLENDIN_OT_create_sample_armature(bpy.types.Operator):
     bl_idname = "blendin.create_sample_armature"
@@ -169,6 +147,34 @@ class BLENDIN_OT_generate_animation(bpy.types.Operator):
     bl_idname = "blendin.generate_animation"
     bl_label = "Generate Animation from Prompt"
 
+    _timer = None
+    thread = None
+    animation_data = None
+    error_message = None
+
+    def modal(self, context, event):
+        if event.type == 'TIMER':
+            if self.thread and self.thread.is_alive():
+                return {'PASS_THROUGH'}
+
+            # --- Thread finished, apply results ---
+            props = context.scene.blend_in_props
+            props.dream_capture_status = "Ready"
+
+            if self.animation_data:
+                armature = bpy.data.objects.get(props.target_armature)
+                dream_capture = DreamCapture()
+                dream_capture.apply_animation_to_armature(armature, self.animation_data)
+                self.report({'INFO'}, "Animation generated and applied.")
+            elif self.error_message:
+                self.report({'ERROR'}, self.error_message)
+            else:
+                self.report({'WARNING'}, f"No animation found for prompt: {props.dream_prompt}")
+
+            return self.finish(context)
+
+        return {'PASS_THROUGH'}
+
     def execute(self, context):
         props = context.scene.blend_in_props
         armature = bpy.data.objects.get(props.target_armature)
@@ -177,22 +183,43 @@ class BLENDIN_OT_generate_animation(bpy.types.Operator):
             self.report({'ERROR'}, "Please select a target armature.")
             return {'CANCELLED'}
 
+        if props.dream_capture_status != "Ready":
+            self.report({'WARNING'}, "An animation is already being generated.")
+            return {'CANCELLED'}
+
         if armature.mode != 'POSE':
             bpy.context.view_layer.objects.active = armature
             bpy.ops.object.mode_set(mode='POSE')
 
-        dream_capture = DreamCapture()
-        animation_data = dream_capture.get_animation_for_prompt(props.dream_prompt)
+        # --- Start Thread for API call ---
+        self.thread = threading.Thread(target=self.get_animation_data_thread, args=(props.dream_prompt,))
+        self.thread.start()
 
-        if animation_data:
-            dream_capture.apply_animation_to_armature(armature, animation_data)
-        else:
-            self.report({'WARNING'}, f"No animation found for prompt: {props.dream_prompt}")
+        props.dream_capture_status = "Generating..."
+        wm = context.window_manager
+        self._timer = wm.event_timer_add(0.1, window=context.window)
+        wm.modal_handler_add(self)
+        return {'RUNNING_MODAL'}
 
+    def get_animation_data_thread(self, prompt):
+        """
+        This function runs in a separate thread to avoid blocking the UI.
+        """
+        try:
+            dream_capture = DreamCapture()
+            # This is where the real API call will go.
+            # For now, it's mocked to read a local file.
+            self.animation_data = dream_capture.get_animation_for_prompt(prompt)
+        except Exception as e:
+            self.error_message = f"Failed to get animation data: {e}"
+
+    def finish(self, context):
+        wm = context.window_manager
+        if self._timer:
+            wm.event_timer_remove(self._timer)
         return {'FINISHED'}
 
 def register():
-    bpy.utils.register_class(BLENDIN_OT_connect_toggle)
     bpy.utils.register_class(BLENDIN_OT_create_sample_armature)
     bpy.utils.register_class(BLENDIN_OT_create_test_character)
     bpy.utils.register_class(BLENDIN_OT_save_animation)
@@ -203,7 +230,6 @@ def register():
     bpy.utils.register_class(BLENDIN_OT_generate_animation)
 
 def unregister():
-    bpy.utils.unregister_class(BLENDIN_OT_connect_toggle)
     bpy.utils.unregister_class(BLENDIN_OT_create_sample_armature)
     bpy.utils.unregister_class(BLENDIN_OT_create_test_character)
     bpy.utils.unregister_class(BLENDIN_OT_save_animation)
