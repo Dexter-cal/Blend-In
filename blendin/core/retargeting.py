@@ -4,6 +4,10 @@ class BoneMapping(bpy.types.PropertyGroup):
     source_bone: bpy.props.StringProperty()
     target_bone: bpy.props.StringProperty()
 
+class BlendInProperties(bpy.types.PropertyGroup):
+    # ... (other properties)
+    bone_mappings: bpy.props.CollectionProperty(type=BoneMapping)
+
 def apply_retargeting(armature, source_rotations, bone_mappings):
     """
     Applies rotations to a target armature based on a bone mapping.
@@ -18,12 +22,8 @@ def apply_retargeting(armature, source_rotations, bone_mappings):
             target_bone_name = mapping_dict[source_bone_name]
             pose_bone = armature.pose.bones.get(target_bone_name)
             if pose_bone:
+                # This is a simple 1-to-1 rotation copy.
+                # A more advanced system would handle axis and rest pose differences.
                 if pose_bone.rotation_mode != 'QUATERNION':
                     pose_bone.rotation_mode = 'QUATERNION'
-
-                # Get the bone's rest pose rotation
-                rest_pose_rot = pose_bone.bone.matrix_local.to_quaternion()
-                rest_pose_rot.invert()
-
-                # Apply the rotation relative to the rest pose
-                pose_bone.rotation_quaternion = rest_pose_rot @ rotation
+                pose_bone.rotation_quaternion = rotation

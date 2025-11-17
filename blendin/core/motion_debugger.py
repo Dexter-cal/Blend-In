@@ -13,8 +13,6 @@ class MotionDebugger:
 
     def start(self):
         if self.draw_handler is None:
-            # Initialize with a dummy vertex
-            self.batch = batch_for_shader(self.shader, 'POINTS', {"pos": [(0, 0, 0)]})
             self.draw_handler = bpy.types.SpaceView3D.draw_handler_add(
                 self.draw, (), 'WINDOW', 'POST_VIEW'
             )
@@ -23,14 +21,13 @@ class MotionDebugger:
         if self.draw_handler:
             bpy.types.SpaceView3D.draw_handler_remove(self.draw_handler, 'WINDOW')
             self.draw_handler = None
-            self.batch = None
 
     def update(self, armature):
         """
         Updates the debugger with the latest armature state.
         For now, calculates and displays the center of mass.
         """
-        if not armature or armature.mode != 'POSE' or not self.batch:
+        if not armature or armature.mode != 'POSE':
             return
 
         total_mass = 0
@@ -49,8 +46,10 @@ class MotionDebugger:
             com[1] /= total_mass
             com[2] /= total_mass
 
-        # Update the batch's vertex data
-        self.batch.vert_set('pos', [tuple(com)])
+        # Create a batch to draw a small sphere at the center of mass
+        # A more advanced implementation would use a more efficient update method
+        verts = [tuple(com)]
+        self.batch = batch_for_shader(self.shader, 'POINTS', {"pos": verts})
 
     def draw(self):
         if self.batch:

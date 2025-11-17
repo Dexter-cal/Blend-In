@@ -53,7 +53,29 @@ from . import properties
 from .core import animation, rigging
 from .ui import panels, operators
 
+class BlendInAddonPreferences(bpy.types.AddonPreferences):
+    bl_idname = __name__
+
+    client_id: bpy.props.StringProperty(
+        name="DeepMotion Client ID",
+        description="Your Client ID for the DeepMotion API",
+        default="",
+    )
+    client_secret: bpy.props.StringProperty(
+        name="DeepMotion Client Secret",
+        description="Your Client Secret for the DeepMotion API",
+        default="",
+        subtype='PASSWORD',
+    )
+
+    def draw(self, context):
+        layout = self.layout
+        layout.label(text="DeepMotion API Credentials")
+        layout.prop(self, "client_id")
+        layout.prop(self, "client_secret")
+
 def register():
+    bpy.utils.register_class(BlendInAddonPreferences)
     bpy.utils.register_class(BLENDIN_OT_install_dependencies)
     bpy.utils.register_class(BLENDIN_PT_dependency_panel)
 
@@ -66,6 +88,7 @@ def register():
         print("Blend-In addon registered.")
 
 def unregister():
+    bpy.utils.unregister_class(BlendInAddonPreferences)
     bpy.utils.unregister_class(BLENDIN_OT_install_dependencies)
     bpy.utils.unregister_class(BLENDIN_PT_dependency_panel)
 
