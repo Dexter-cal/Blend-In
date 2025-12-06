@@ -1,8 +1,9 @@
 import bpy
 
 class BoneMapping(bpy.types.PropertyGroup):
-    source_bone: bpy.props.StringProperty()
-    target_bone: bpy.props.StringProperty()
+    """Represents a mapping from a source bone to a target bone."""
+    source_bone: bpy.props.StringProperty(name="Source Bone")
+    target_bone: bpy.props.StringProperty(name="Target Bone")
 
 def apply_retargeting(armature, source_rotations, bone_mappings):
     """
@@ -18,12 +19,14 @@ def apply_retargeting(armature, source_rotations, bone_mappings):
             target_bone_name = mapping_dict[source_bone_name]
             pose_bone = armature.pose.bones.get(target_bone_name)
             if pose_bone:
+                # This is a simple 1-to-1 rotation copy.
+                # A more advanced system would handle axis and rest pose differences.
                 if pose_bone.rotation_mode != 'QUATERNION':
                     pose_bone.rotation_mode = 'QUATERNION'
+                pose_bone.rotation_quaternion = rotation
 
-                # Get the bone's rest pose rotation
-                rest_pose_rot = pose_bone.bone.matrix_local.to_quaternion()
-                rest_pose_rot.invert()
+def register():
+    bpy.utils.register_class(BoneMapping)
 
-                # Apply the rotation relative to the rest pose
-                pose_bone.rotation_quaternion = rest_pose_rot @ rotation
+def unregister():
+    bpy.utils.unregister_class(BoneMapping)

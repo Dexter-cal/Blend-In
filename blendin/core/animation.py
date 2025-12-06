@@ -1,13 +1,11 @@
 import bpy
 import time
-import math
-from mathutils import Quaternion, Euler
+from mathutils import Quaternion
 from ..comms.websocket_client import get_client
 from .facial_mapping import FacialMapper
 from .smoothing import SmoothingFilter
 from .motion_textures import MotionTextureGenerator
 from .retargeting import apply_retargeting
-from .motion_debugger import MotionDebugger, _motion_debugger
 
 class LiveAnimationOperator(bpy.types.Operator):
     """Operator which runs a modal timer to update an armature and face."""
@@ -19,8 +17,6 @@ class LiveAnimationOperator(bpy.types.Operator):
     _smoothing_filter = None
     _motion_texture_generator = None
     _start_time = 0
-    _armature = None
-    _mesh = None
 
     def modal(self, context, event):
         if event.type == 'TIMER':
@@ -31,26 +27,9 @@ class LiveAnimationOperator(bpy.types.Operator):
                 if data:
                     props = context.scene.blend_in_props
 
-                    # --- Smoothing ---
-                    if props.use_smoothing:
-                        if self._smoothing_filter is None:
-                            self._smoothing_filter = SmoothingFilter()
-                        data = self._smoothing_filter.smooth(data)
-                    else:
-                        self._smoothing_filter = None
-
-                    # --- Motion Textures ---
-                    texture_offsets = {}
-                    if props.use_motion_textures:
-                        if self._motion_texture_generator is None:
-                            self._motion_texture_generator = MotionTextureGenerator()
-
-                        elapsed_time = time.time() - self._start_time
-                        texture_offsets = self._motion_texture_generator.get_offsets(elapsed_time)
-
                     # --- Skeletal Animation ---
                     if 'joints' in data:
-                        armature = self._armature
+                        armature = bpy.data.objects.get(props.target_armature)
 
                         # Create a dictionary of source rotations
                         source_rotations = {
@@ -61,32 +40,34 @@ class LiveAnimationOperator(bpy.types.Operator):
                         # Apply retargeting
                         apply_retargeting(armature, source_rotations, props.bone_mappings)
 
-                        # Apply motion textures
+                        # Apply motion textures and record keyframes
                         if armature and armature.mode == 'POSE':
+                            texture_offsets = {}
+                            if props.use_motion_textures:
+                                if self._motion_texture_generator is None:
+                                    self._motion_texture_generator = MotionTextureGenerator()
+
+                                elapsed_time = time.time() - self._start_time
+                                texture_offsets = self._motion_texture_generator.get_offsets(elapsed_time)
+
                             for bone_name, offset in texture_offsets.items():
                                 pose_bone = armature.pose.bones.get(bone_name)
                                 if pose_bone:
                                     pose_bone.rotation_quaternion @= offset
 
-                        # Record keyframes
-                        if props.is_recording and armature and armature.mode == 'POSE':
-                            for mapping in props.bone_mappings:
-                                pose_bone = armature.pose.bones.get(mapping.target_bone)
-                                if pose_bone:
-                                    pose_bone.keyframe_insert(data_path="rotation_quaternion", frame=context.scene.frame_current)
+                            if props.is_recording:
+                                for mapping in props.bone_mappings:
+                                    pose_bone = armature.pose.bones.get(mapping.target_bone)
+                                    if pose_bone:
+                                        pose_bone.keyframe_insert(data_path="rotation_quaternion", frame=context.scene.frame_current)
 
 
                     # --- Facial Animation ---
                     if 'facial_landmarks' in data:
-                        target_mesh = self._mesh
+                        target_mesh = bpy.data.objects.get(props.target_mesh)
                         if self._facial_mapper is None or self.mappings_changed(props.facial_mappings):
                             mapping_config = {
-                                m.name: {
-                                    "upper": m.upper_landmark,
-                                    "lower": m.lower_landmark,
-                                    "baseline": m.baseline_distance,
-                                    "sensitivity": m.sensitivity,
-                                }
+                                m.name: {"upper": m.upper_landmark, "lower": m.lower_landmark}
                                 for m in props.facial_mappings
                             }
                             self._facial_mapper = FacialMapper(mapping_config)
@@ -101,7 +82,7 @@ class LiveAnimationOperator(bpy.types.Operator):
 
                     # --- Vocal Animation ---
                     if 'vocal_energy' in data:
-                        target_mesh = self._mesh
+                        target_mesh = bpy.data.objects.get(props.target_mesh)
                         if target_mesh and target_mesh.data.shape_keys:
                             jaw_open_bs = target_mesh.data.shape_keys.key_blocks.get("jaw_open")
                             if jaw_open_bs:
@@ -112,7 +93,8 @@ class LiveAnimationOperator(bpy.types.Operator):
                     # --- Update Debugger ---
                     global _motion_debugger
                     if _motion_debugger:
-                        _motion_debugger.update(self._armature)
+                        armature = bpy.data.objects.get(context.scene.blend_in_props.target_armature)
+                        _motion_debugger.update(armature)
 
         elif event.type in {'RIGHTMOUSE', 'ESC'}:
             self.cancel(context)
@@ -135,15 +117,14 @@ class LiveAnimationOperator(bpy.types.Operator):
         return False
 
     def execute(self, context):
-        props = context.scene.blend_in_props
-        self._armature = bpy.data.objects.get(props.target_armature)
-        self._mesh = bpy.data.objects.get(props.target_mesh)
+        target_armature_name = context.scene.blend_in_props.target_armature
+        target_mesh_name = context.scene.blend_in_props.target_mesh
 
-        if not self._armature and not self._mesh:
+        if not target_armature_name and not target_mesh_name:
             self.report({'ERROR'}, "Please select a target armature or mesh.")
             return {'CANCELLED'}
 
-        if self._armature:
+        if target_armature_name and bpy.data.objects.get(target_armature_name):
             bpy.ops.object.mode_set(mode='POSE')
 
         wm = context.window_manager

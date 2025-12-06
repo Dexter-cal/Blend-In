@@ -139,10 +139,6 @@ class BLENDIN_PT_facial_mapping_panel(bpy.types.Panel):
                 row.prop(mapping, "upper_landmark", text="Upper")
                 row = box.row()
                 row.prop(mapping, "lower_landmark", text="Lower")
-                row = box.row()
-                row.prop(mapping, "baseline_distance", text="Baseline")
-                row = box.row()
-                row.prop(mapping, "sensitivity", text="Sensitivity")
 
 class BLENDIN_PT_dream_capture_panel(bpy.types.Panel):
     bl_label = "Dream Capture"
@@ -198,6 +194,8 @@ class BLENDIN_PT_retargeting_panel(bpy.types.Panel):
             row.label(text=mapping.source_bone)
             # Create a searchable dropdown of the target armature's bones
             row.prop_search(mapping, "target_bone", armature.data, "bones", text="")
+
+# ... (rest of operators)
 
 def register():
     bpy.utils.register_class(BLENDIN_PT_main_panel)
